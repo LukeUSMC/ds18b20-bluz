@@ -14,11 +14,12 @@ DS18B20 ds18b20 = DS18B20(D2);
 
 float pubTemp;
 double celsius;
-double fahrenheit
+double fahrenheit;
 unsigned long metricPublishRate = 30000;
 unsigned long lastMetricPublishTime = 35000;
 unsigned long lastDSSampleTime = 20000;
 unsigned long dsSampleRate = 2000;
+bool firstPass = true;
 bool radioON;
 int failedAttempts;
 int successAttempts;
