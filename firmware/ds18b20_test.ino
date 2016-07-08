@@ -14,21 +14,19 @@ int DS18B20_SAMPLE_INTERVAL = 2500;
 int dsAttempts = 0;
 
 void setup() {
-    Time.zone(-5);
-    Particle.syncTime();
     pinMode(D2, INPUT);
     Particle.variable("tempDS18B20", &fahrenheit, DOUBLE);
-    Serial.begin(115200);
+    Serial1.begin(38400);
 }
 
 void loop() {
 
-if (millis() - dsNextSampleTime > ds_Sample_Rate){
+if (millis() > DS18B20nextSampleTime){
   getTemp();
   }
 
 if (millis() > MetricnextPublishTime){
-    Serial.println("Publishing now.");
+    Serial1.println("Publishing now.");
     publishData();
   }
 }
@@ -47,12 +45,12 @@ void getTemp(){
     if(!ds18b20.search()){
       ds18b20.resetsearch();
       celsius = ds18b20.getTemperature();
-      Serial.println(celsius);
+      Serial1.println(celsius);
       while (!ds18b20.crcCheck() && dsAttempts < 4){
-        Serial.println("Caught bad value.");
+        Serial1.println("Caught bad value.");
         dsAttempts++;
-        Serial.print("Attempts to Read: ");
-        Serial.println(dsAttempts);
+        Serial1.print("Attempts to Read: ");
+        Serial1.println(dsAttempts);
         if (dsAttempts == 3){
           delay(1000);
         }
@@ -63,6 +61,6 @@ void getTemp(){
       dsAttempts = 0;
       fahrenheit = ds18b20.convertToFahrenheit(celsius);
       DS18B20nextSampleTime = millis() + DS18B20_SAMPLE_INTERVAL;
-      Serial.println(fahrenheit);
+      Serial1.println(fahrenheit);
     }
 }

@@ -126,23 +126,23 @@ private:
     STM32_Pin_Info* PIN_MAP = HAL_Pin_Map();
 
     inline void digitalWriteFastLow() {
-      nrf_gpio_pin_clear(PIN_MAP[_pin].gpio_pin);
+      HAL_GPIO_Write(PIN_MAP[_pin].gpio_pin, LOW);
     }
 
     inline void digitalWriteFastHigh() {
-      nrf_gpio_pin_set(PIN_MAP[_pin].gpio_pin);
+      HAL_GPIO_Write(PIN_MAP[_pin].gpio_pin, HIGH);
     }
 
     inline void pinModeFastOutput(void){
-      nrf_gpio_cfg_output(PIN_MAP[_pin].gpio_pin);
+      HAL_Pin_Mode(PIN_MAP[_pin].gpio_pin, OUTPUT);
     }
 
     inline void pinModeFastInput(void){
-      nrf_gpio_cfg_input(PIN_MAP[_pin].gpio_pin, NRF_GPIO_PIN_NOPULL);
+      HAL_Pin_Mode(PIN_MAP[_pin].gpio_pin, INPUT);
     }
 
     inline uint8_t digitalReadFast(void){
-      return nrf_gpio_pin_read(PIN_MAP[_pin].gpio_pin);
+      return HAL_GPIO_Read(PIN_MAP[_pin].gpio_pin);
     }
 
   #else
