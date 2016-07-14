@@ -31,8 +31,9 @@ void radioCallbackHandler(bool radio_active);
 
 /* executes once at startup */
 void setup() {
-  Serial1.begin(38400);
   pinMode(D2, INPUT);
+  Serial1.begin(38400);
+  Serial1.println("Staring up...");
   Particle.variable("tempDS18B20", &fahrenheit, DOUBLE);
   ds18b20.setResolution(9); //See Note above before modifying
   BLE.registerNotifications(radioCallbackHandler);
@@ -65,7 +66,8 @@ void publishData(){
 if(!ds18b20.crcCheck()){
     return;
   }
-  Particle.publish("bluzTemp", String::format("DS18B20 Temp is: %2.2f. Success Rate is: %2.2f.", fahrenheit, readPercentage), PRIVATE);
+  Serial1.println("DS18B20 Temp is: " + String(fahrenheit,2) + "F. Success Rate is: " + String(readPercentage,2) + "%.");
+  Particle.publish("bluzTemp", "DS18B20 Temp is: " + String(fahrenheit,2) + "F. Success Rate is: " + String(readPercentage,2) + "%.", PRIVATE);
 }
 
 void getTemp(){
