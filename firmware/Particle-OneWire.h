@@ -1,13 +1,25 @@
+
+/* Temporary for a few weeks until the Web IDE is updated */
+#include "application.h"
+#include "pinmap_impl.h"
+#undef SCK
+#undef MISO
+#undef MOSI
+#undef SS
+#include "nrf_gpio.h"
+/* End of temporary includes */
+
 // This is adapted from from http://pastebin.com/iYcDkrLw written by
 // @tidwelltimj (https://community.spark.io/users/tidwelltimj/activity)
 // Support for the Photon added by Brendan Albano, 2015.
 
-//onewire.h
 #ifndef OneWire_h
 #define OneWire_h
 
 #include <inttypes.h>
 #include "application.h"
+#include "pinmap_impl.h"
+
 
 // you can exclude onewire_search by defining that to 0
 #ifndef ONEWIRE_SEARCH
@@ -121,27 +133,27 @@ private:
       return HAL_GPIO_Read(_pin);
     }
 
-  #elif PLATFORM_ID == 103 // Bluz
-      STM32_Pin_Info* PIN_MAP = HAL_Pin_Map(); // Pointer required for highest access speed
+    #elif PLATFORM_ID == 103 // Bluz
+    STM32_Pin_Info* PIN_MAP = HAL_Pin_Map();
 
     inline void digitalWriteFastLow() {
-      HAL_GPIO_Write(PIN_MAP[_pin].gpio_pin, LOW);
+        nrf_gpio_pin_clear(PIN_MAP[_pin].gpio_pin);
     }
 
     inline void digitalWriteFastHigh() {
-      HAL_GPIO_Write(PIN_MAP[_pin].gpio_pin, HIGH);
+      nrf_gpio_pin_set(PIN_MAP[_pin].gpio_pin);
     }
 
     inline void pinModeFastOutput(void){
-      HAL_Pin_Mode(PIN_MAP[_pin].gpio_pin, OUTPUT);
+      nrf_gpio_cfg_output(PIN_MAP[_pin].gpio_pin);
     }
-
+    
     inline void pinModeFastInput(void){
-      HAL_Pin_Mode(PIN_MAP[_pin].gpio_pin, INPUT);
+      nrf_gpio_cfg_input(PIN_MAP[_pin].gpio_pin, NRF_GPIO_PIN_NOPULL);
     }
 
     inline uint8_t digitalReadFast(void){
-      return HAL_GPIO_Read(PIN_MAP[_pin].gpio_pin);
+      return nrf_gpio_pin_read(PIN_MAP[_pin].gpio_pin);
     }
 
   #else
