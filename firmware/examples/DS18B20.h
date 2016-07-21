@@ -11,6 +11,7 @@
 #define TEMP_12_BIT 0x7F // 12 bit
 #define READPOWERSUPPLY 0xB4  // Determine if device needs parasite power
 
+
 class DS18B20{
 private:
     OneWire* ds;
@@ -21,7 +22,8 @@ private:
     byte _dataCRC;
     byte _readCRC;
     char szName[MAX_NAME];
-
+    int16_t millisToWaitForConversion(uint8_t);
+    uint8_t bitResolution;
 public:
     DS18B20(uint16_t pin);
     boolean search();
