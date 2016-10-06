@@ -3,8 +3,15 @@
 
 DS18B20::DS18B20(uint16_t pin){
     ds = new OneWire(pin);
-    bitResolution = 12; //chip default
+    bitResolution = 12; //12 is the hardware default
 }
+
+DS18B20::DS18B20(uint16_t pin, uint8_t resolution){
+    ds = new OneWire(pin);
+    bitResolution = resolution;
+}
+
+
 
 boolean DS18B20::search(){
     boolean isSuccess =  ds->search(addr);
@@ -18,13 +25,17 @@ boolean DS18B20::search(){
             case 0x22:      sprintf(szName, "DS1822");      type_s = 0;     break;
             default:        sprintf(szName, "Unknown");     type_s = 0;     break;
         }
+        setResolution(bitResolution);
     }
-
     return isSuccess;
 }
 
 void DS18B20::resetsearch(){
     ds->reset_search();
+}
+
+uint8_t DS18B20::getResolution(){
+    return bitResolution;
 }
 
 void DS18B20::setResolution(uint8_t newResolution){
@@ -65,6 +76,7 @@ int16_t DS18B20::millisToWaitForConversion(uint8_t bitResolution)
         return 750;
     }
 }
+
 
 bool DS18B20::readPowerSupply(){
     bool ret = false;
