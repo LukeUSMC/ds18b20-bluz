@@ -2,7 +2,7 @@
 #include "application.h"
 
 #define MAX_NAME 8
-#define MAX_RETRIES 3
+#define MAX_RETRIES 5
 
 // Device resolution
 #define TEMP_9_BIT  0x1F //  9 bit
@@ -26,9 +26,11 @@ private:
     uint8_t bitResolution;
 public:
     DS18B20(uint16_t pin);
+    DS18B20(uint16_t pin, uint8_t resolution);
     boolean search();
     void resetsearch();
     void setResolution(uint8_t newResolution);
+    uint8_t getResolution();
     bool readPowerSupply();
     void getROM(char szROM[]);
     byte getChipType();
