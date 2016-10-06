@@ -1,16 +1,19 @@
 #include "Particle-OneWire.h"
 #include "DS18B20.h"
 
-/*NOTE:In my experience when testing the DS18B20 with Bluz I found that using a
-resolution higher than 10bits (9 and 10 bits give you increments of 0.5°C,
-0.25°C respectively) leads to a high rate of failed read attempts.  This
-is due to the timing sensitive nature of the DS18B20 and the Bluz BLE radio
-interrupts.  If anyone finds a solution that allows a higher resolution please
-contact me on GitHub and I will update the lib and example.
-https://github.com/LukeUSMC/ds18b20-bluz
-*/
+#define ledPin D7
+#define oneWirePin D2
+#define dsResolution 9
+// Higher resolution takes longer to calculate but should give increase precision
+// Bit | Precision (F) | Time to calculate (+ ~30-50ms overhead)
+//  9  |  .9F |  94ms
+// 10  | .45F |  188ms
+// 11  | .23F |  375ms
+// 12  | .11F |  750ms
+// In my testing it doesn't seem like the resolution setting is working, 
+// 9-bit and 12-bit give the exact same result but the latter takes much longer to process
 
-DS18B20 ds18b20 = DS18B20(D2);
+DS18B20 ds18b20 = DS18B20(oneWirePin, dsResolution);
 
 float pubTemp;
 double celsius;
@@ -19,73 +22,91 @@ unsigned long metricPublishRate = 30000;
 unsigned long lastMetricPublishTime = 35000;
 unsigned long lastDSSampleTime = 20000;
 unsigned long dsSampleRate = 2000;
-bool firstPass = true;
-bool radioON;
-int failedAttempts;
-int successAttempts;
-float readPercentage;
+bool foundSensor = false;
 
-void getTemp();
-void publishData();
-void radioCallbackHandler(bool radio_active);
+int failedAttempts = 0;
+int successAttempts = 0;
+int totalAttempts = 0;
+float readPercentage = 0;
+unsigned long totalTime = 0;
+float averageTime = 0;
+
 
 /* executes once at startup */
 void setup() {
-  pinMode(D2, INPUT);
-  Serial1.begin(38400);
-  Serial1.println("Staring up...");
-  Particle.variable("tempDS18B20", &fahrenheit, DOUBLE);
-  ds18b20.setResolution(9); //See Note above before modifying
-  BLE.registerNotifications(radioCallbackHandler);
+    pinMode(ledPin, OUTPUT);
+    pinMode(oneWirePin, INPUT);
+    Serial1.begin(38400);
+    Serial1.println("Staring up...");
+    Particle.variable("tempDS18B20", &fahrenheit, DOUBLE);
+
 }
 
 /* executes continuously after setup() runs */
 void loop() {
+    
+    if (millis() - lastDSSampleTime > dsSampleRate){
+        getTemp();
+        lastDSSampleTime = millis();
+        if (foundSensor) 
+            Serial1.println("Temp is: " + String(fahrenheit,2) + "F. Success: " + String(readPercentage,2) + "%; Attempts: " + String(totalAttempts) + "; Avg time for success: " + String(averageTime, 1) + "ms" );
 
-  if (millis() - lastDSSampleTime > dsSampleRate && !radioON){
-    getTemp();
-    lastDSSampleTime = millis();
-    }
-
-  if (Particle.connected()){
-  /*NOTE: See Bluz Docs for details on SLEEP_MODE_CPU, if commented battery
-  usage will be high. Wait for a cloud connection before entering SLEEP*/
-      System.sleep(SLEEP_MODE_CPU);
-      if (millis() - lastMetricPublishTime > metricPublishRate && !radioON){
-        publishData();
-        lastMetricPublishTime = millis();
+        if (Particle.connected()){
+            /*NOTE: See Bluz Docs for details on SLEEP_MODE_CPU, if commented battery
+            usage will be high. Wait for a cloud connection before entering SLEEP*/
+            System.sleep(SLEEP_MODE_CPU);
+            if (millis() - lastMetricPublishTime > metricPublishRate){
+                publishData();
+                lastMetricPublishTime = millis();
+            }
         }
     }
 }
 
-void radioCallbackHandler(bool radio_active){
-  radioON = radio_active;
-}
-
-void publishData(){
-if(!ds18b20.crcCheck()){
-    return;
-  }
-  Serial1.println("DS18B20 Temp is: " + String(fahrenheit,2) + "F. Success Rate is: " + String(readPercentage,2) + "%.");
-  Particle.publish("bluzTemp", "DS18B20 Temp is: " + String(fahrenheit,2) + "F. Success Rate is: " + String(readPercentage,2) + "%.", PRIVATE);
+void publishData()
+{
+    if(foundSensor){
+        Particle.publish("bluzTemp", "Temp is: " + String(fahrenheit,2) + "F. Success: " + String(readPercentage,2) + "%; Attempts: " + String(totalAttempts) + "; Avg time for success: " + String(averageTime, 1) + "ms", 60, PRIVATE);
+        lastMetricPublishTime = millis();
+    }
 }
 
 void getTemp(){
-  if(firstPass){
-    ds18b20.setResolution(9);
-    firstPass = false;
-  }
-  if(!ds18b20.search()){
-    ds18b20.resetsearch();
-    celsius = ds18b20.getTemperature();
-    if (!ds18b20.crcCheck()){
-      failedAttempts++;
-    }else{
-      successAttempts++;
+    digitalWrite(ledPin, HIGH);
+    if(!foundSensor){
+        //Takes several tries to find a device successfully but after that we save and re-use it
+        bool success = ds18b20.search();
+        if (success)
+        {
+            Serial1.println("successful search, sensor found");
+            foundSensor = true; 
+            char szRom[24];
+            ds18b20.getROM(szRom); //get address
+            Serial1.print("Rom: ");
+            Serial1.println(szRom);
+            Serial1.println("Resolution: " + String(ds18b20.getResolution()) + "bit");
+        }
+        else
+            Serial1.println("failed search, will try again next time");
     }
-    fahrenheit = ds18b20.convertToFahrenheit(celsius);
-    int totalAttempts = successAttempts + failedAttempts;
-    readPercentage = ((float)successAttempts /  (float)totalAttempts) * 100.0;
-  }
+    if (foundSensor)
+    {
+        unsigned long before=millis();
+        celsius = ds18b20.getTemperature();
+        if (!ds18b20.crcCheck()){
+            failedAttempts++;
+            Serial1.println("failed attempt");
+            }else{
+            fahrenheit = ds18b20.convertToFahrenheit(celsius);
+            successAttempts++;
+        }
+        unsigned long delta = millis()-before;
+        totalTime += delta;
+        averageTime = (totalTime/successAttempts);
 
+        totalAttempts = successAttempts + failedAttempts;
+        readPercentage = ((float)successAttempts /  (float)totalAttempts) * 100.0;
+    }
+    digitalWrite(ledPin, LOW);
+    
 }

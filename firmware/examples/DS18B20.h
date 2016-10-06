@@ -2,7 +2,7 @@
 #include "application.h"
 
 #define MAX_NAME 8
-#define MAX_RETRIES 3
+#define MAX_RETRIES 5
 
 // Device resolution
 #define TEMP_9_BIT  0x1F //  9 bit
@@ -10,6 +10,7 @@
 #define TEMP_11_BIT 0x5F // 11 bit
 #define TEMP_12_BIT 0x7F // 12 bit
 #define READPOWERSUPPLY 0xB4  // Determine if device needs parasite power
+
 
 class DS18B20{
 private:
@@ -21,12 +22,15 @@ private:
     byte _dataCRC;
     byte _readCRC;
     char szName[MAX_NAME];
-
+    int16_t millisToWaitForConversion(uint8_t);
+    uint8_t bitResolution;
 public:
     DS18B20(uint16_t pin);
+    DS18B20(uint16_t pin, uint8_t resolution);
     boolean search();
     void resetsearch();
     void setResolution(uint8_t newResolution);
+    uint8_t getResolution();
     bool readPowerSupply();
     void getROM(char szROM[]);
     byte getChipType();
