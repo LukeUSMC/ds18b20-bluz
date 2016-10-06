@@ -3,7 +3,15 @@
 
 DS18B20::DS18B20(uint16_t pin){
     ds = new OneWire(pin);
+    bitResolution = 12; //12 is the hardware default
 }
+
+DS18B20::DS18B20(uint16_t pin, uint8_t resolution){
+    ds = new OneWire(pin);
+    bitResolution = resolution;
+}
+
+
 
 boolean DS18B20::search(){
     boolean isSuccess =  ds->search(addr);
@@ -17,8 +25,8 @@ boolean DS18B20::search(){
             case 0x22:      sprintf(szName, "DS1822");      type_s = 0;     break;
             default:        sprintf(szName, "Unknown");     type_s = 0;     break;
         }
+        setResolution(bitResolution);
     }
-
     return isSuccess;
 }
 
@@ -26,9 +34,14 @@ void DS18B20::resetsearch(){
     ds->reset_search();
 }
 
+uint8_t DS18B20::getResolution(){
+    return bitResolution;
+}
+
 void DS18B20::setResolution(uint8_t newResolution){
   ds->reset();
   ds->select(addr);
+  bitResolution = newResolution;
   switch (newResolution){
   case 12:
       ds->write(TEMP_12_BIT);
@@ -47,6 +60,23 @@ void DS18B20::setResolution(uint8_t newResolution){
   HAL_Delay_Milliseconds(20);
   ds->reset();
 }
+
+// returns number of milliseconds to wait till conversion is complete (based on IC datasheet)
+int16_t DS18B20::millisToWaitForConversion(uint8_t bitResolution)
+{
+    switch (bitResolution)
+    {
+    case 9:
+        return 94;
+    case 10:
+        return 188;
+    case 11:
+        return 375;
+    default:
+        return 750;
+    }
+}
+
 
 bool DS18B20::readPowerSupply(){
     bool ret = false;
@@ -74,18 +104,26 @@ float DS18B20::getTemperature(){
     ds->reset();
     ds->select(addr);
     ds->write(0x44);        // start conversion, with parasite power on at the end
-    delay(750);     // maybe 750ms is enough, maybe not
+    int16_t waitTime = millisToWaitForConversion(bitResolution); //based on resolution
+    delay(waitTime); 
     // we might do a ds.depower() here, but the reset will take care of it.
-    ds->reset();
-    ds->select(addr);
-    ds->write(0xBE);         // Read Scratchpad
 
-    for (int i = 0; i < 9; i++) {           // we need 9 bytes
-        data[i] = ds->read();
+    for(int attempt = 0; attempt <= MAX_RETRIES; attempt++)
+    {
+        ds->reset();
+        ds->select(addr);
+        ds->write(0xBE);         // Read Scratchpad
+    
+        for (int i = 0; i < 9; i++) {           // we need 9 bytes
+            data[i] = ds->read();
+        }
+    
+        _dataCRC = (OneWire::crc8(data, 8));
+        _readCRC = (data[8]);
+        if (_dataCRC == _readCRC)
+            break; 
     }
 
-    _dataCRC = (OneWire::crc8(data, 8));
-    _readCRC = (data[8]);
 
     // Convert the data to actual temperature
     // because the result is a 16 bit signed integer, it should
